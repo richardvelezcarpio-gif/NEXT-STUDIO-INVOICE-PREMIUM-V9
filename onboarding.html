@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Personalize Your Generator | Next Studio</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+.onboard{min-height:100vh;background:linear-gradient(135deg,#f4faff,#fff);padding:50px 20px}
+.onboard-card{width:min(900px,100%);margin:auto;background:#fff;border:1px solid #d9e6f2;border-radius:26px;box-shadow:0 30px 80px #0825411f;padding:38px}
+.onboard-logo{width:220px;max-height:78px;object-fit:contain;object-position:left center}
+.onboard h1{font-size:42px;letter-spacing:-.04em;margin:24px 0 10px;color:#061d3a}
+.onboard .lead{color:#65788d;line-height:1.6}
+.order-confirm{padding:14px 16px;border-radius:12px;background:#eaf6ff;color:#1760a5;font-size:12px;margin:20px 0}
+.form-grid-v9{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.form-grid-v9 label{display:grid;gap:7px;font-size:11px;font-weight:800;color:#435b74}
+.form-grid-v9 input,.form-grid-v9 textarea,.form-grid-v9 select{width:100%;padding:12px;border:1px solid #ccdbe8;border-radius:10px;font:inherit}
+.form-grid-v9 .full{grid-column:1/-1}
+.logo-upload{padding:18px;background:#f7fbff;border:1px dashed #aac8e1;border-radius:12px}
+.form-actions{margin-top:24px}
+.result{display:none;margin-top:18px;padding:15px;border-radius:12px;background:#ebfaef;color:#236939}
+@media(max-width:650px){.form-grid-v9{grid-template-columns:1fr}.form-grid-v9 .full{grid-column:auto}.onboard-card{padding:25px}.onboard h1{font-size:34px}}
+</style>
+</head>
+<body class="onboard">
+<div class="onboard-card">
+<img src="assets/LOGO.png" class="onboard-logo" alt="Next Studio">
+<span class="eyebrow">PERSONALIZATION</span>
+<h1 id="title">Let’s build it around your business.</h1>
+<p class="lead" id="intro">Your subscription has been approved. Send the information we need to personalize your Invoice, Estimate & Policy Generator.</p>
+<div class="order-confirm" id="subInfo">Checking subscription…</div>
+
+<form id="onboardingForm">
+<div class="form-grid-v9">
+<label>Business Name<input name="businessName" required></label>
+<label>Contact Name<input name="contactName" required></label>
+<label>Email<input type="email" name="email" required></label>
+<label>Phone<input name="phone"></label>
+<label class="full">Business Address<textarea name="address" rows="2"></textarea></label>
+<label>Website<input name="website"></label>
+<label>Preferred Language<select name="preferredLanguage"><option>English</option><option>Español</option></select></label>
+<label>Primary Brand Color<input name="primaryColor" placeholder="#0A2342"></label>
+<label>Secondary Brand Color<input name="secondaryColor" placeholder="#1682F4"></label>
+<label>Default Tax %<input name="taxRate" type="number" step=".001" placeholder="8.875"></label>
+<label>Invoice Prefix<input name="invoicePrefix" placeholder="ABC-INV"></label>
+<label class="full">Payment Instructions<textarea name="paymentInstructions" rows="3" placeholder="How customers should pay you"></textarea></label>
+<label class="full">Special Requests<textarea name="notes" rows="3"></textarea></label>
+<label class="full logo-upload">Business Logo (PNG/JPG, max 2 MB)<input id="logoFile" type="file" accept="image/png,image/jpeg"></label>
+</div>
+<div class="form-actions"><button id="submitBtn" class="btn wide" type="submit">Send My Information</button></div>
+</form>
+<div id="result" class="result">Information received successfully. Next Studio has been notified and will review your order before sending your confirmation.</div>
+</div>
+<script>
+const params=new URLSearchParams(location.search);
+const subscriptionID=params.get("subscription_id")||"";
+const form=document.querySelector("#onboardingForm");
+const info=document.querySelector("#subInfo");
+const result=document.querySelector("#result");
+
+(async()=>{
+  if(!subscriptionID){
+    info.textContent="Missing subscription ID. Please return to checkout.";
+    form.style.display="none";
+    return;
+  }
+  try{
+    const r=await fetch("/api/paypal/subscription/"+encodeURIComponent(subscriptionID));
+    const d=await r.json();
+    if(!r.ok || !d.verified){
+      info.textContent="We could not verify this subscription yet.";
+      form.style.display="none";
+      return;
+    }
+    info.textContent=`Subscription verified: ${subscriptionID}`;
+  }catch(e){
+    info.textContent="Could not verify subscription.";
+    form.style.display="none";
+  }
+})();
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result);
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
+}
+
+form.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const submitBtn=document.querySelector("#submitBtn");
+  submitBtn.disabled=true;
+  submitBtn.textContent="Sending...";
+  const fd=new FormData(form);
+  const payload=Object.fromEntries(fd.entries());
+  delete payload.logoFile;
+  payload.subscriptionID=subscriptionID;
+  const file=document.querySelector("#logoFile").files[0];
+  if(file){
+    if(file.size>2*1024*1024){alert("Logo must be 2 MB or less.");return;}
+    payload.logoFileName=file.name;
+    payload.logoData=await fileToBase64(file);
+  }
+  const r=await fetch("/api/onboarding",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload)
+  });
+  const d=await r.json();
+  if(!r.ok){submitBtn.disabled=false;submitBtn.textContent="Send My Information";alert(d.error||"Unable to send information.");return;}
+  const paramsNow=new URLSearchParams(location.search);
+  const currentLang=paramsNow.get("lang")||"en";
+  const qs=new URLSearchParams({
+    subscription_id:subscriptionID,
+    lang:currentLang
+  });
+  window.location.href=`/success.html?${qs.toString()}`;
+});
+</script>
+</body></html>

@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Invoice, Estimate & Policy Generator | Next Studio</title>
+  <link rel="stylesheet" href="app-styles.css">
+</head>
+<body class="app-body">
+  <header class="app-topbar">
+    <a class="brand app-real-brand" href="index.html">
+      <img src="assets/LOGO.png" alt="Next Studio" class="app-real-logo">
+    </a>
+
+    <div class="language-switcher">
+      <button class="lang-btn" data-lang="es">ESPAÑOL</button>
+      <button class="lang-btn active" data-lang="en">ENGLISH</button>
+    </div>
+
+    <div class="top-actions">
+      <button class="ghost-btn" id="newDoc" data-i18n="newBtn">+ New</button>
+      <button class="ghost-btn" id="historyBtn" data-i18n="history">History</button>
+      <a class="ghost-btn" href="index.html" data-i18n="salesPage">Sales Page</a>
+    </div>
+  </header>
+
+  <div class="app-shell">
+    <aside class="editor-panel">
+      <div class="doc-tabs">
+        <button class="active" data-type="invoice" data-i18n="invoice">Invoice</button>
+        <button data-type="estimate" data-i18n="estimate">Estimate</button>
+        <button data-type="policy" data-i18n="policy">Policy</button>
+      </div>
+
+      <section class="form-section common-section">
+        <h3 data-i18n="document">Document</h3>
+        <div class="form-grid two">
+          <label><span data-i18n="number">Number</span><input id="docNumber" value="NS-INV-1001"></label>
+          <label><span data-i18n="issueDate">Issue Date</span><input id="issueDate" type="date"></label>
+          <label class="due-field"><span data-i18n="dueDate">Due Date</span><input id="dueDate" type="date"></label>
+          <label class="tax-field"><span data-i18n="taxPercent">Tax %</span><input id="taxRate" type="number" min="0" step="0.01" value="8.875"></label>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h3 data-i18n="billTo">Bill To</h3>
+        <div class="form-grid">
+          <label><span data-i18n="clientCompany">Client / Company</span><input id="clientName" data-ph-en="Client name" data-ph-es="Nombre del cliente" placeholder="Client name"></label>
+          <label><span data-i18n="email">Email</span><input id="clientEmail" type="email" placeholder="client@email.com"></label>
+          <label><span data-i18n="phone">Phone</span><input id="clientPhone" placeholder="(000) 000-0000"></label>
+          <label><span data-i18n="address">Address</span><textarea id="clientAddress" rows="2" data-ph-en="Street, City, State ZIP" data-ph-es="Calle, Ciudad, Estado ZIP" placeholder="Street, City, State ZIP"></textarea></label>
+        </div>
+      </section>
+
+      <section class="form-section invoice-estimate-only">
+        <div class="section-row"><h3 data-i18n="servicesItems">Services / Items</h3><button class="text-btn" id="addItem" data-i18n="addItem">+ Add Item</button></div>
+        <div id="itemsEditor"></div>
+      </section>
+
+      <section class="form-section invoice-estimate-only">
+        <h3 data-i18n="adjustments">Adjustments</h3>
+        <div class="form-grid two">
+          <label><span data-i18n="discount">Discount $</span><input id="discount" type="number" min="0" step="0.01" value="0"></label>
+          <label><span data-i18n="amountPaid">Amount Paid $</span><input id="paid" type="number" min="0" step="0.01" value="0"></label>
+        </div>
+      </section>
+
+      <section class="form-section invoice-estimate-only">
+        <h3 data-i18n="notesPayment">Notes & Payment</h3>
+        <label><span data-i18n="notes">Notes</span><textarea id="notes" rows="3">Thank you for choosing Next Studio.</textarea></label>
+        <label><span data-i18n="paymentInstructions">Payment Instructions</span><textarea id="paymentInstructions" rows="3">Payment due by the date shown above.</textarea></label>
+      </section>
+
+      <section class="form-section policy-only hidden">
+        <h3 data-i18n="policyDetails">Policy Details</h3>
+        <div class="form-grid">
+          <label><span data-i18n="projectName">Project Name</span><input id="projectName" value="Residential Renovation Sample"></label>
+          <label><span data-i18n="projectLocation">Project Location</span><textarea id="projectLocation" rows="2">123 Sample Street, New York, NY</textarea></label>
+          <label><span data-i18n="policyScope">Scope of Work</span><textarea id="policyScope" rows="4">Interior renovation work including demolition, framing, drywall installation, painting, and finish work as described in the approved estimate.</textarea></label>
+          <label><span data-i18n="policyTerms">Policy / Terms</span><textarea id="policyTerms" rows="11">1. Work will be performed according to the approved estimate and agreed scope.
+2. Any additional work or change order must be approved before work begins.
+3. Client is responsible for providing reasonable access to the work area.
+4. Material availability and unforeseen site conditions may affect the schedule.
+5. Deposits and progress payments are due according to the agreed payment schedule.
+6. Workmanship issues must be reported within the agreed warranty period.
+7. This document is a SAMPLE construction work policy for demonstration purposes only.</textarea></label>
+        </div>
+      </section>
+    </aside>
+
+    <main class="preview-panel">
+      <div class="preview-toolbar">
+        <span data-i18n="letterSize">US Letter • 8.5 × 11</span>
+        <div>
+          <button id="saveBtn" class="ghost-btn" data-i18n="saveHistory">Save to History</button>
+          <button id="pdfBtn" class="ghost-btn">PDF / Print</button>
+          <button id="jpgBtn" class="ghost-btn">JPG</button>
+          <button id="shareBtn" class="primary-btn" data-i18n="copyLink">Copy Link</button>
+          <button id="sendBtn" class="primary-btn" data-i18n="send">Send</button>
+        </div>
+      </div>
+
+      <div class="paper-wrap">
+        <article id="invoicePaper" class="invoice-paper">
+          <!-- V3 VISUAL: INVOICE / ESTIMATE ONLY -->
+          <div id="invoiceEstimatePreview" class="v3-document">
+            <section class="v3-doc-hero">
+              <div class="v3-doc-brand">
+                <img src="assets/LOGO.png" alt="Next Studio" class="v3-real-logo">
+              </div>
+
+              <div class="v3-hero-image">
+                <img class="v3-city-photo"
+                  src="assets/nyc-skyline-fallback.jpg"
+                  alt="New York City skyline" />
+              </div>
+
+              <div class="v3-doc-meta-panel">
+                <h1 id="previewType">INVOICE</h1>
+                <div class="v3-meta-line"></div>
+                <small id="metaNumberLabel">INVOICE NO.</small>
+                <strong id="previewNumber">NS-INV-1001</strong>
+                <small id="metaDateLabel">INVOICE DATE</small>
+                <strong id="pIssueDate">—</strong>
+                <small id="metaDueLabel">DUE DATE</small>
+                <strong id="pDueDate">—</strong>
+              </div>
+            </section>
+
+            <section class="v3-info-band">
+              <div class="v3-info-card">
+                <div class="v3-round-icon">●</div>
+                <div>
+                  <h4 id="v3BillToLabel">BILL TO</h4>
+                  <strong id="pClientName">Client Name</strong>
+                  <p id="pClientInfo">Client information</p>
+                </div>
+              </div>
+
+              <div class="v3-info-card">
+                <div class="v3-round-icon">▦</div>
+                <div>
+                  <h4 id="v3BusinessLabel">BUSINESS</h4>
+                  <strong>Next Studio</strong>
+                  <p>New York, NY<br>nextstudio.agency<br><span data-i18n="businessSolutions">Business Digital Solutions</span></p>
+                </div>
+              </div>
+            </section>
+
+            <table class="v3-doc-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th id="v3DescriptionLabel">DESCRIPTION</th>
+                  <th id="v3QtyLabel">QTY</th>
+                  <th id="v3UnitLabel">UNIT</th>
+                  <th id="v3PriceLabel">UNIT PRICE</th>
+                  <th id="v3AmountLabel">AMOUNT</th>
+                </tr>
+              </thead>
+              <tbody id="previewItems"></tbody>
+            </table>
+
+            <div class="v3-invoice-bottom-static">
+              <section class="v3-bottom-grid">
+                <div class="v3-notes-column">
+                  <div class="v3-note-block">
+                    <h4 id="v3NotesLabel">◉ NOTES</h4>
+                    <p id="pNotes"></p>
+                  </div>
+                  <div class="v3-note-block">
+                    <h4 id="v3PaymentLabel">▣ PAYMENT TERMS</h4>
+                    <p id="pPayment"></p>
+                  </div>
+                </div>
+
+                <div class="v3-totals-box">
+                  <div><span id="v3SubtotalLabel">SUBTOTAL</span><b id="pSubtotal">$0.00</b></div>
+                  <div><span id="v3DiscountLabel">DISCOUNT</span><b id="pDiscount">$0.00</b></div>
+                  <div><span id="v3TaxLabel">TAX</span><b id="pTax">$0.00</b></div>
+                  <div class="v3-total-due"><span id="v3TotalLabel">TOTAL DUE</span><b id="pTotal">$0.00</b></div>
+                  <div class="v3-balance-due"><span id="v3BalanceLabel">BALANCE DUE</span><b id="pBalance">$0.00</b></div>
+                </div>
+              </section>
+
+              <section class="v3-signature-bank">
+                <div class="v3-authorized">
+                  <small id="v3AuthorizedLabel">AUTHORIZED BY</small>
+                  <div class="v3-signature">Next Studio</div>
+                  <span id="v3AuthorizedSignature">Authorized Signature</span>
+                </div>
+
+                <div class="v3-contact-mini">
+                  <p>◉ New York, NY</p>
+                  <p>✉ info@nextstudio.agency</p>
+                  <p>◎ www.nextstudio.agency</p>
+                </div>
+
+                <div class="v3-bank-mini">
+                  <h4 id="v3PaymentInfoLabel">▦ PAYMENT INFORMATION</h4>
+                  <p id="v3PaymentInfoText">Payment instructions appear in the section above.</p>
+                </div>
+              </section>
+            </div>
+
+            <footer class="v3-doc-footer" id="v3FooterThanks">Thank you for your business!</footer>
+          </div>
+
+          <!-- V4 POLICY VISUAL REMAINS UNCHANGED -->
+          <div id="policyPreview" class="policy-preview hidden">
+            <header class="invoice-head">
+              <div class="invoice-brand invoice-brand-real-logo">
+                <img src="assets/LOGO.png" alt="Next Studio" class="policy-real-logo">
+              </div>
+              <div class="invoice-title">
+                <h1 id="policyPreviewType">POLICY</h1>
+                <strong id="policyPreviewNumber">#NS-POL-1001</strong>
+                <span class="sample-badge">SAMPLE</span>
+              </div>
+            </header>
+
+            <div class="business-info">
+              <div>
+                <h4 data-i18n="from">FROM</h4>
+                <strong>Next Studio</strong>
+                <p>New York, NY<br>nextstudio.agency<br><span data-i18n="businessSolutions">Business Digital Solutions</span></p>
+              </div>
+              <div>
+                <h4 data-i18n="billToUpper">BILL TO</h4>
+                <strong id="pPolicyHeaderClient">Client Name</strong>
+                <p id="pPolicyHeaderInfo">Client information</p>
+              </div>
+              <div class="dates">
+                <p><span data-i18n="issueDate">Issue Date</span><b id="pPolicyIssueDate"></b></p>
+              </div>
+            </div>
+
+            <section class="policy-hero">
+              <div><span data-i18n="policyFor">POLICY FOR</span><strong id="pPolicyClient">Client Name</strong></div>
+              <div><span data-i18n="project">PROJECT</span><strong id="pProjectName">Residential Renovation Sample</strong></div>
+            </section>
+
+            <section class="policy-section">
+              <h3 data-i18n="projectLocationUpper">PROJECT LOCATION</h3>
+              <p id="pProjectLocation"></p>
+            </section>
+
+            <section class="policy-section">
+              <h3 data-i18n="scopeUpper">SCOPE OF WORK</h3>
+              <p id="pPolicyScope"></p>
+            </section>
+
+            <section class="policy-section">
+              <h3 data-i18n="termsUpper">CONSTRUCTION WORK POLICY / TERMS</h3>
+              <p id="pPolicyTerms"></p>
+            </section>
+
+            <div class="policy-signatures">
+              <div><span></span><small data-i18n="contractorSignature">Contractor Signature</small></div>
+              <div><span></span><small data-i18n="clientSignature">Client Signature</small></div>
+            </div>
+
+            <div class="demo-notice" data-i18n="demoNotice">SAMPLE / DEMO — This is a fictional construction work policy created only to demonstrate the document generator.</div>
+
+            <footer class="invoice-footer">
+              <div>nextstudio.agency</div>
+              <div>Powered by Next Studio</div>
+            </footer>
+          </div>
+        </article>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="historyDialog">
+    <div class="dialog-head">
+      <div><span class="eyebrow" data-i18n="documents">DOCUMENTS</span><h2 data-i18n="history">History</h2></div>
+      <button id="closeHistory">×</button>
+    </div>
+    <p class="muted" data-i18n="historyNote">Saved in this browser for the sample. Production versions can use private cloud storage.</p>
+    <div id="historyList"></div>
+  </dialog>
+
+  <dialog id="sendDialog">
+    <div class="dialog-head">
+      <div><span class="eyebrow" data-i18n="share">SHARE</span><h2 data-i18n="sendDocument">Send document</h2></div>
+      <button id="closeSend">×</button>
+    </div>
+    <div class="send-options">
+      <a id="emailLink" class="send-option" href="#"><b>Email</b><small data-i18n="openEmail">Open your email app</small></a>
+      <a id="waLink" class="send-option" href="#" target="_blank"><b>WhatsApp</b><small data-i18n="sendLink">Send the document link</small></a>
+    </div>
+  </dialog>
+
+  <div id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
