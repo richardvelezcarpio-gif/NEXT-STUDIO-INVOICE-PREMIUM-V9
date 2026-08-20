@@ -13,14 +13,14 @@ const i18n = {
     billTo:"Bill To",clientCompany:"Client / Company",email:"Email",phone:"Phone",address:"Address",servicesItems:"Services / Items",addItem:"+ Add Item",
     adjustments:"Adjustments",discount:"Discount $",amountPaid:"Amount Paid $",notesPayment:"Notes & Payment",notes:"Notes",paymentInstructions:"Payment Instructions",
     policyDetails:"Policy Details",projectName:"Project Name",projectLocation:"Project Location",policyScope:"Scope of Work",policyTerms:"Policy / Terms",
-    letterSize:"US Letter • 8.5 × 11",saveHistory:"Save to History",copyLink:"Copy Link",send:"Send",tagline:"Building Digital Businesses",
+    letterSize:"US Letter • 8.5 × 11",saveHistory:"Save to History",liveDemo:"LIVE DEMO",send:"Send",tagline:"Building Digital Businesses",
     from:"FROM",businessSolutions:"Business Digital Solutions",billToUpper:"BILL TO",description:"Description",qty:"Qty",rate:"Rate",amount:"Amount",
     notesUpper:"NOTES",paymentUpper:"PAYMENT INSTRUCTIONS",subtotal:"Subtotal",discountLabel:"Discount",tax:"Tax",total:"Total",paid:"Paid",balanceDue:"BALANCE DUE",
     policyFor:"POLICY FOR",project:"PROJECT",projectLocationUpper:"PROJECT LOCATION",scopeUpper:"SCOPE OF WORK",termsUpper:"CONSTRUCTION WORK POLICY / TERMS",
     contractorSignature:"Contractor Signature",clientSignature:"Client Signature",demoNotice:"SAMPLE / DEMO — This is a fictional construction work policy created only to demonstrate the document generator.",
     documents:"DOCUMENTS",historyNote:"Saved in this browser for the sample. Production versions can use private cloud storage.",share:"SHARE",sendDocument:"Send document",
     openEmail:"Open your email app",sendLink:"Send the document link",clientPlaceholder:"Client Name",clientInfo:"Client information",
-    saved:"Saved to history",newReady:"New document ready",jpgGenerated:"JPG generated",linkCopied:"Share link copied",opened:"Document opened",
+    saved:"Saved to history",newReady:"New document ready",jpgGenerated:"JPG generated",opened:"Document opened",
     noDocuments:"No saved documents yet.",noItems:"No items added.",service:"Service",
     invoiceUpper:"INVOICE",estimateUpper:"ESTIMATE",policyUpper:"POLICY",
     defaultNotes:"Thank you for choosing Next Studio.",defaultPayment:"Payment due by the date shown above.",
@@ -35,14 +35,14 @@ const i18n = {
     billTo:"Facturar A",clientCompany:"Cliente / Compañía",email:"Email",phone:"Teléfono",address:"Dirección",servicesItems:"Servicios / Productos",addItem:"+ Agregar",
     adjustments:"Ajustes",discount:"Descuento $",amountPaid:"Pago Recibido $",notesPayment:"Notas y Pago",notes:"Notas",paymentInstructions:"Instrucciones de Pago",
     policyDetails:"Detalles de Policy",projectName:"Nombre del Proyecto",projectLocation:"Ubicación del Proyecto",policyScope:"Alcance del Trabajo",policyTerms:"Policy / Términos",
-    letterSize:"US Letter • 8.5 × 11",saveHistory:"Guardar en Historial",copyLink:"Copiar Link",send:"Enviar",tagline:"Construyendo Negocios Digitales",
+    letterSize:"US Letter • 8.5 × 11",saveHistory:"Guardar en Historial",liveDemo:"DEMO INTERACTIVA",send:"Enviar",tagline:"Construyendo Negocios Digitales",
     from:"DE",businessSolutions:"Soluciones Digitales para Negocios",billToUpper:"FACTURAR A",description:"Descripción",qty:"Cant.",rate:"Precio",amount:"Importe",
     notesUpper:"NOTAS",paymentUpper:"INSTRUCCIONES DE PAGO",subtotal:"Subtotal",discountLabel:"Descuento",tax:"Impuesto",total:"Total",paid:"Pagado",balanceDue:"SALDO PENDIENTE",
     policyFor:"POLICY PARA",project:"PROYECTO",projectLocationUpper:"UBICACIÓN DEL PROYECTO",scopeUpper:"ALCANCE DEL TRABAJO",termsUpper:"POLICY / TÉRMINOS DEL TRABAJO DE CONSTRUCCIÓN",
     contractorSignature:"Firma del Contratista",clientSignature:"Firma del Cliente",demoNotice:"SAMPLE / DEMO — Esta es una policy ficticia de trabajo de construcción creada únicamente para demostrar el generador de documentos.",
     documents:"DOCUMENTOS",historyNote:"Guardado en este navegador para el sample. La versión de producción puede usar almacenamiento privado en la nube.",share:"COMPARTIR",sendDocument:"Enviar documento",
     openEmail:"Abrir aplicación de email",sendLink:"Enviar el link del documento",clientPlaceholder:"Nombre del Cliente",clientInfo:"Información del cliente",
-    saved:"Guardado en historial",newReady:"Nuevo documento listo",jpgGenerated:"JPG generado",linkCopied:"Link copiado",opened:"Documento abierto",
+    saved:"Guardado en historial",newReady:"Nuevo documento listo",jpgGenerated:"JPG generado",opened:"Documento abierto",
     noDocuments:"Todavía no hay documentos guardados.",noItems:"No hay productos o servicios.",service:"Servicio",
     invoiceUpper:"FACTURA",estimateUpper:"COTIZACIÓN",policyUpper:"POLICY",
     defaultNotes:"Gracias por elegir Next Studio.",defaultPayment:"El pago vence en la fecha indicada arriba.",
@@ -409,20 +409,6 @@ $('#jpgBtn').onclick=async()=>{
 };
 
 
-function bytesToBase64Url(bytes){
-  let binary='';
-  const chunk=0x8000;
-
-  for(let i=0;i<bytes.length;i+=chunk){
-    binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
-  }
-
-  return btoa(binary)
-    .replace(/\+/g,'-')
-    .replace(/\//g,'_')
-    .replace(/=+$/,'');
-}
-
 function base64UrlToBytes(value){
   let base64=value
     .replace(/-/g,'+')
@@ -440,25 +426,6 @@ function base64UrlToBytes(value){
   }
 
   return bytes;
-}
-
-async function compressShareData(data){
-  const json=JSON.stringify(data);
-  const input=new TextEncoder().encode(json);
-
-  if(typeof CompressionStream!=='function'){
-    return 'u.'+bytesToBase64Url(input);
-  }
-
-  const stream=new Blob([input])
-    .stream()
-    .pipeThrough(new CompressionStream('deflate-raw'));
-
-  const compressed=new Uint8Array(
-    await new Response(stream).arrayBuffer()
-  );
-
-  return 'z.'+bytesToBase64Url(compressed);
 }
 
 async function decompressShareData(payload){
@@ -490,35 +457,6 @@ async function decompressShareData(payload){
     new TextDecoder().decode(decompressed)
   );
 }
-
-async function encodeShare(){
-  const payload=await compressShareData(getData());
-  return `${location.origin}${location.pathname}#s=${payload}`;
-}
-
-$('#shareBtn').onclick=async()=>{
-  saveHistory(false);
-
-  try{
-    const url=await encodeShare();
-    await navigator.clipboard.writeText(url);
-    toast(t('linkCopied'));
-  }catch(err){
-    console.error(err);
-
-    try{
-      const url=await encodeShare();
-      prompt('Copy:',url);
-    }catch(innerErr){
-      console.error(innerErr);
-      alert(
-        lang==='es'
-          ?'No se pudo generar el link.'
-          :'Could not generate the link.'
-      );
-    }
-  }
-};
 
 function cleanEmailText(d){
   const docName=typeTitle();
