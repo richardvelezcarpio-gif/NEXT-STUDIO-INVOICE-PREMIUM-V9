@@ -409,14 +409,115 @@ $('#jpgBtn').onclick=async()=>{
 };
 
 
-function encodeShare(){
-  const d=getData(), payload=btoa(unescape(encodeURIComponent(JSON.stringify(d))));
-  return location.origin+location.pathname+'#doc='+encodeURIComponent(payload);
+function bytesToBase64Url(bytes){
+  let binary='';
+  const chunk=0x8000;
+
+  for(let i=0;i<bytes.length;i+=chunk){
+    binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
+  }
+
+  return btoa(binary)
+    .replace(/\+/g,'-')
+    .replace(/\//g,'_')
+    .replace(/=+$/,'');
 }
+
+function base64UrlToBytes(value){
+  let base64=value
+    .replace(/-/g,'+')
+    .replace(/_/g,'/');
+
+  while(base64.length%4){
+    base64+='=';
+  }
+
+  const binary=atob(base64);
+  const bytes=new Uint8Array(binary.length);
+
+  for(let i=0;i<binary.length;i++){
+    bytes[i]=binary.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+async function compressShareData(data){
+  const json=JSON.stringify(data);
+  const input=new TextEncoder().encode(json);
+
+  if(typeof CompressionStream!=='function'){
+    return 'u.'+bytesToBase64Url(input);
+  }
+
+  const stream=new Blob([input])
+    .stream()
+    .pipeThrough(new CompressionStream('deflate-raw'));
+
+  const compressed=new Uint8Array(
+    await new Response(stream).arrayBuffer()
+  );
+
+  return 'z.'+bytesToBase64Url(compressed);
+}
+
+async function decompressShareData(payload){
+  const mode=payload.slice(0,2);
+  const value=payload.slice(2);
+  const bytes=base64UrlToBytes(value);
+
+  if(mode==='u.'){
+    return JSON.parse(
+      new TextDecoder().decode(bytes)
+    );
+  }
+
+  if(mode!=='z.'){
+    throw new Error('Unsupported share link');
+  }
+
+  if(typeof DecompressionStream!=='function'){
+    throw new Error('This browser cannot open compressed share links');
+  }
+
+  const stream=new Blob([bytes])
+    .stream()
+    .pipeThrough(new DecompressionStream('deflate-raw'));
+
+  const decompressed=await new Response(stream).arrayBuffer();
+
+  return JSON.parse(
+    new TextDecoder().decode(decompressed)
+  );
+}
+
+async function encodeShare(){
+  const payload=await compressShareData(getData());
+  return `${location.origin}${location.pathname}#s=${payload}`;
+}
+
 $('#shareBtn').onclick=async()=>{
   saveHistory(false);
-  const url=encodeShare();
-  try{await navigator.clipboard.writeText(url);toast(t('linkCopied'))}catch{prompt('Copy:',url)}
+
+  try{
+    const url=await encodeShare();
+    await navigator.clipboard.writeText(url);
+    toast(t('linkCopied'));
+  }catch(err){
+    console.error(err);
+
+    try{
+      const url=await encodeShare();
+      prompt('Copy:',url);
+    }catch(innerErr){
+      console.error(innerErr);
+      alert(
+        lang==='es'
+          ?'No se pudo generar el link.'
+          :'Could not generate the link.'
+      );
+    }
+  }
 };
 
 function cleanEmailText(d){
@@ -531,15 +632,40 @@ function showHistory(){
 $('#historyBtn').onclick=showHistory;
 $('#closeHistory').onclick=()=>$('#historyDialog').close();
 
-function loadFromHash(){
-  if(!location.hash.startsWith('#doc='))return;
-  try{
-    const raw=decodeURIComponent(location.hash.slice(5));
-    const d=JSON.parse(decodeURIComponent(escape(atob(raw))));
-    loadData(d);
-    toast(t('opened'));
-  }catch(e){console.error(e)}
+async function loadFromHash(){
+  if(location.hash.startsWith('#s=')){
+    try{
+      const payload=location.hash.slice(3);
+      const d=await decompressShareData(payload);
+
+      loadData(d);
+      toast(t('opened'));
+    }catch(e){
+      console.error(e);
+    }
+
+    return;
+  }
+
+  // Compatibilidad con los links largos anteriores
+  if(location.hash.startsWith('#doc=')){
+    try{
+      const raw=decodeURIComponent(location.hash.slice(5));
+
+      const d=JSON.parse(
+        decodeURIComponent(
+          escape(atob(raw))
+        )
+      );
+
+      loadData(d);
+      toast(t('opened'));
+    }catch(e){
+      console.error(e);
+    }
+  }
 }
+
 
 applyLanguage(false);
 renderEditors();
