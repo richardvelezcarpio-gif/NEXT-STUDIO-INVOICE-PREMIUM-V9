@@ -250,47 +250,164 @@ $('#newDoc').onclick=()=>{
   renderEditors();renderPreview();toast(t('newReady'));
 };
 
-$('#pdfBtn').onclick=()=>{saveHistory(false);window.print()};
 
-function createJpg(){
-  const d=renderPreview(), W=1275,H=1650,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
-  x.fillStyle='#fff';x.fillRect(0,0,W,H);x.fillStyle='#081d3a';x.fillRect(0,0,W,18);
-  x.fillStyle='#081d3a';x.font='bold 40px Arial';x.fillText('NEXT',90,110);x.fillStyle='#1473e6';x.fillText('STUDIO',220,110);
-  x.fillStyle='#081d3a';x.font='bold 54px Arial';x.textAlign='right';x.fillText(typeTitle(),1185,110);x.textAlign='left';
-  x.fillStyle='#1473e6';x.font='bold 20px Arial';x.textAlign='right';x.fillText('#'+d.number,1185,150);x.textAlign='left';
-  x.fillStyle='#dbe7f3';x.fillRect(90,185,1095,3);
-
-  x.fillStyle='#1473e6';x.font='bold 14px Arial';x.fillText(t('billToUpper'),90,255);
-  x.fillStyle='#081d3a';x.font='bold 25px Arial';x.fillText(d.clientName||t('clientPlaceholder'),90,290);
-
-  if(d.type==='policy'){
-    x.fillStyle='#1473e6';x.font='bold 15px Arial';x.fillText(t('projectLocationUpper'),90,390);
-    x.fillStyle='#63758a';x.font='18px Arial';wrapText(x,d.projectLocation,90,425,1050,26);
-    x.fillStyle='#1473e6';x.font='bold 15px Arial';x.fillText(t('scopeUpper'),90,560);
-    x.fillStyle='#63758a';x.font='18px Arial';wrapText(x,d.policyScope,90,595,1050,26);
-    x.fillStyle='#1473e6';x.font='bold 15px Arial';x.fillText(t('termsUpper'),90,760);
-    x.fillStyle='#63758a';x.font='17px Arial';wrapText(x,d.policyTerms,90,800,1050,27);
-    x.fillStyle='#88671a';x.font='bold 14px Arial';wrapText(x,t('demoNotice'),90,1460,1050,24);
-  } else {
-    let y=430;x.fillStyle='#081d3a';x.fillRect(90,y,1095,55);x.fillStyle='#fff';x.font='bold 15px Arial';
-    x.fillText(t('description').toUpperCase(),110,y+34);x.textAlign='right';x.fillText(t('qty').toUpperCase(),850,y+34);x.fillText(t('rate').toUpperCase(),1010,y+34);x.fillText(t('amount').toUpperCase(),1165,y+34);x.textAlign='left';y+=80;
-    x.font='20px Arial';
-    d.items.forEach(it=>{x.fillStyle='#16304e';x.fillText(String(it.description||t('service')).slice(0,55),110,y);x.textAlign='right';x.fillText(String(it.qty||0),850,y);x.fillText(money(it.rate),1010,y);x.fillText(money((it.qty||0)*(it.rate||0)),1165,y);x.textAlign='left';x.fillStyle='#e5edf5';x.fillRect(90,y+25,1095,2);y+=65});
-    y=Math.max(y+80,850);x.fillStyle='#63758a';x.font='18px Arial';x.fillText(t('subtotal'),820,y);x.textAlign='right';x.fillText(money(d.subtotal),1165,y);y+=38;x.textAlign='left';x.fillText(t('discountLabel'),820,y);x.textAlign='right';x.fillText('-'+money(d.discount),1165,y);y+=38;x.textAlign='left';x.fillText(t('tax'),820,y);x.textAlign='right';x.fillText(money(d.tax),1165,y);y+=38;
-    x.fillStyle='#081d3a';x.fillRect(800,y,385,85);x.fillStyle='#fff';x.font='bold 16px Arial';x.textAlign='left';x.fillText(t('balanceDue'),825,y+50);x.fillStyle='#5eb4ff';x.font='bold 29px Arial';x.textAlign='right';x.fillText(money(d.balance),1160,y+52);x.textAlign='left';
-  }
-  x.fillStyle='#e5edf5';x.fillRect(90,1545,1095,2);x.fillStyle='#7b8c9e';x.font='14px Arial';x.fillText('nextstudio.agency',90,1585);x.textAlign='right';x.fillText('Powered by Next Studio',1185,1585);
-  const a=document.createElement('a');a.download=`${d.number}.jpg`;a.href=c.toDataURL('image/jpeg',.94);a.click();toast(t('jpgGenerated'));
+async function waitForImages(root){
+  const images=[...root.querySelectorAll('img')];
+  await Promise.all(images.map(img=>{
+    if(img.complete && img.naturalWidth) return Promise.resolve();
+    return new Promise(resolve=>{
+      img.addEventListener('load',resolve,{once:true});
+      img.addEventListener('error',resolve,{once:true});
+    });
+  }));
 }
-function wrapText(ctx,text,x,y,maxWidth,lineHeight){
-  let paragraphs=String(text||'').split('\\n');
-  paragraphs.forEach(p=>{
-    let words=p.split(/\\s+/),line='';
-    for(const w of words){let test=line+w+' ';if(ctx.measureText(test).width>maxWidth&&line){ctx.fillText(line,x,y);line=w+' ';y+=lineHeight}else line=test}
-    ctx.fillText(line,x,y);y+=lineHeight;
+
+async function captureExactDocument(){
+  if(typeof html2canvas!=='function'){
+    throw new Error('html2canvas is not loaded');
+  }
+
+  renderPreview();
+
+  const original=$('#invoicePaper');
+  const stage=document.createElement('div');
+
+  stage.style.position='fixed';
+  stage.style.left='-12000px';
+  stage.style.top='0';
+  stage.style.width='8.5in';
+  stage.style.height='11in';
+  stage.style.background='#fff';
+  stage.style.overflow='hidden';
+  stage.style.zIndex='-9999';
+
+  const clone=original.cloneNode(true);
+
+  clone.removeAttribute('id');
+  clone.style.transform='none';
+  clone.style.transformOrigin='top left';
+  clone.style.margin='0';
+  clone.style.width='8.5in';
+  clone.style.minHeight='11in';
+  clone.style.height='11in';
+  clone.style.boxShadow='none';
+  clone.style.position='relative';
+  clone.style.left='0';
+  clone.style.top='0';
+
+  stage.appendChild(clone);
+  document.body.appendChild(stage);
+
+  try{
+    await document.fonts?.ready;
+    await waitForImages(clone);
+
+    const canvas=await html2canvas(clone,{
+      backgroundColor:'#ffffff',
+      scale:2,
+      useCORS:true,
+      allowTaint:false,
+      logging:false,
+      width:clone.scrollWidth,
+      height:clone.scrollHeight,
+      windowWidth:clone.scrollWidth,
+      windowHeight:clone.scrollHeight,
+      scrollX:0,
+      scrollY:0
+    });
+
+    return canvas;
+  }finally{
+    stage.remove();
+  }
+}
+
+function canvasToBlob(canvas,type='image/jpeg',quality=.96){
+  return new Promise((resolve,reject)=>{
+    canvas.toBlob(blob=>{
+      if(blob) resolve(blob);
+      else reject(new Error('Unable to generate file'));
+    },type,quality);
   });
 }
-$('#jpgBtn').onclick=()=>{saveHistory(false);createJpg()};
+
+async function buildPdfBlob(){
+  if(!window.jspdf?.jsPDF){
+    throw new Error('jsPDF is not loaded');
+  }
+
+  const canvas=await captureExactDocument();
+  const imageData=canvas.toDataURL('image/jpeg',.96);
+  const {jsPDF}=window.jspdf;
+
+  const pdf=new jsPDF({
+    orientation:'portrait',
+    unit:'in',
+    format:'letter',
+    compress:true
+  });
+
+  // One exact US Letter page: 8.5 × 11.
+  pdf.addImage(imageData,'JPEG',0,0,8.5,11,undefined,'FAST');
+  return pdf.output('blob');
+}
+
+function downloadBlob(blob,filename){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+$('#pdfBtn').onclick=async()=>{
+  saveHistory(false);
+  const btn=$('#pdfBtn');
+  const old=btn.textContent;
+  try{
+    btn.disabled=true;
+    btn.textContent='Generating PDF...';
+    const d=renderPreview();
+    const blob=await buildPdfBlob();
+    downloadBlob(blob,`${d.number}.pdf`);
+    toast(lang==='es'?'PDF generado':'PDF generated');
+  }catch(err){
+    console.error(err);
+    alert(lang==='es'?'No se pudo generar el PDF.':'Could not generate PDF.');
+  }finally{
+    btn.disabled=false;
+    btn.textContent=old;
+  }
+};
+
+async function createJpg(){
+  const d=renderPreview();
+  const canvas=await captureExactDocument();
+  const blob=await canvasToBlob(canvas,'image/jpeg',.96);
+  downloadBlob(blob,`${d.number}.jpg`);
+  toast(t('jpgGenerated'));
+}
+
+$('#jpgBtn').onclick=async()=>{
+  saveHistory(false);
+  const btn=$('#jpgBtn');
+  const old=btn.textContent;
+  try{
+    btn.disabled=true;
+    btn.textContent='Generating JPG...';
+    await createJpg();
+  }catch(err){
+    console.error(err);
+    alert(lang==='es'?'No se pudo generar la imagen.':'Could not generate JPG.');
+  }finally{
+    btn.disabled=false;
+    btn.textContent=old;
+  }
+};
+
 
 function encodeShare(){
   const d=getData(), payload=btoa(unescape(encodeURIComponent(JSON.stringify(d))));
@@ -301,17 +418,94 @@ $('#shareBtn').onclick=async()=>{
   const url=encodeShare();
   try{await navigator.clipboard.writeText(url);toast(t('linkCopied'))}catch{prompt('Copy:',url)}
 };
-$('#sendBtn').onclick=()=>{
-  const d=renderPreview(),url=encodeShare();
+
+function cleanEmailText(d){
   const docName=typeTitle();
-  const subject=encodeURIComponent(`${docName} ${d.number} - Next Studio`);
-  const intro=lang==='es'?`Hola ${d.clientName||''},\\n\\nAquí está su ${docName.toLowerCase()}: ${url}\\n\\nGracias,\\nNext Studio`:`Hello ${d.clientName||''},\\n\\nHere is your ${docName.toLowerCase()}: ${url}\\n\\nThank you,\\nNext Studio`;
-  const body=encodeURIComponent(intro);
-  $('#emailLink').href=`mailto:${encodeURIComponent(d.clientEmail||'')}?subject=${subject}&body=${body}`;
-  $('#waLink').href=`https://wa.me/?text=${body}`;
+  if(lang==='es'){
+    return `Hola ${d.clientName||''},
+
+Adjunto encontrará su ${docName.toLowerCase()} ${d.number}.
+
+Gracias por su preferencia.
+
+Next Studio`;
+  }
+
+  return `Hello ${d.clientName||''},
+
+Attached is your ${docName.toLowerCase()} ${d.number}.
+
+Thank you for your business.
+
+Next Studio`;
+}
+
+$('#sendBtn').onclick=()=>{
+  saveHistory(false);
+  const d=renderPreview();
+  const body=cleanEmailText(d);
+
+  // WhatsApp no longer receives the giant encoded document URL.
+  $('#waLink').href=`https://wa.me/?text=${encodeURIComponent(body)}`;
   $('#sendDialog').showModal();
 };
+
+$('#emailLink').onclick=async(e)=>{
+  e.preventDefault();
+
+  const d=renderPreview();
+  const docName=typeTitle();
+  const subject=`${docName} ${d.number} - Next Studio`;
+  const body=cleanEmailText(d);
+
+  const link=$('#emailLink');
+  const old=link.innerHTML;
+
+  try{
+    link.style.pointerEvents='none';
+    link.innerHTML='<b>Preparing PDF...</b><small>Please wait</small>';
+
+    const pdfBlob=await buildPdfBlob();
+    const file=new File([pdfBlob],`${d.number}.pdf`,{type:'application/pdf'});
+
+    // Best result: native share sheet with the actual PDF attached.
+    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+      await navigator.share({
+        title:subject,
+        text:body,
+        files:[file]
+      });
+      return;
+    }
+
+    // Fallback for browsers that cannot attach a file to the share sheet:
+    // download the PDF and open a CLEAN email without the huge data link.
+    downloadBlob(pdfBlob,`${d.number}.pdf`);
+
+    const mailto=`mailto:${encodeURIComponent(d.clientEmail||'')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href=mailto;
+
+    setTimeout(()=>{
+      alert(
+        lang==='es'
+          ?`El PDF ${d.number}.pdf fue descargado. Adjúnte ese archivo al email que se abrió.`
+          :`The PDF ${d.number}.pdf was downloaded. Attach that file to the email that opened.`
+      );
+    },700);
+
+  }catch(err){
+    if(err?.name!=='AbortError'){
+      console.error(err);
+      alert(lang==='es'?'No se pudo preparar el PDF para email.':'Could not prepare the PDF for email.');
+    }
+  }finally{
+    link.style.pointerEvents='';
+    link.innerHTML=old;
+  }
+};
+
 $('#closeSend').onclick=()=>$('#sendDialog').close();
+
 
 function loadData(d){
   if(d.lang){lang=d.lang;localStorage.setItem('nsLang',lang)}

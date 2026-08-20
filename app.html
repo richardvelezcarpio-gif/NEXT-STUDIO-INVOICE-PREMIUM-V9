@@ -287,12 +287,14 @@
       <button id="closeSend">×</button>
     </div>
     <div class="send-options">
-      <a id="emailLink" class="send-option" href="#"><b>Email</b><small data-i18n="openEmail">Open your email app</small></a>
+      <a id="emailLink" class="send-option" href="#"><b>Email PDF</b><small>Send or attach the real PDF — no giant link</small></a>
       <a id="waLink" class="send-option" href="#" target="_blank"><b>WhatsApp</b><small data-i18n="sendLink">Send the document link</small></a>
     </div>
   </dialog>
 
   <div id="toast"></div>
+  <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://unpkg.com/jspdf@4.0.0/dist/jspdf.umd.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
